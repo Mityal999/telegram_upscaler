@@ -10,9 +10,55 @@ from dotenv import load_dotenv
 import tempfile
 import os
 
+from PIL import Image
+from diffusers import LDMSuperResolutionPipeline
+import torch
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model_id = "CompVis/ldm-super-resolution-4x-openimages"
+
+# load model and scheduler
+pipeline = LDMSuperResolutionPipeline.from_pretrained(model_id)
+pipeline = pipeline.to(device)
+
+from PIL import Image
+
+
+def resize_image(image, max_size):
+    width, height = image.size
+    if width > max_size or height > max_size:
+        if width > height:
+            new_width = max_size
+            new_height = int(height * (max_size / width))
+        else:
+            new_height = max_size
+            new_width = int(width * (max_size / height))
+        image = image.resize((new_width, new_height), Image.ANTIALIAS)
+    return image
+
+
+def load_and_resize_image(file_path):
+    # Загрузка изображения
+    image = Image.open(file_path).convert("RGB")
+
+    # Проверка и изменение размера, если необходимо
+    max_size = 512
+    image = resize_image(image, max_size)
+
+    # Сохранение измененного изображения (если требуется)
+    # image.save(new_file_path)
+
+    return image
+
 # Mock func
-def upscale_image(image_path):
-    return image_path
+def upscale_image(image_path, pipline = pipline):
+    low_res_img = load_and_resize_image(image_path)
+    upscaled_image = pipeline(low_res_img, num_inference_steps=100, eta=1).images[0]
+    path_split = image_path.split('.')
+    path_split[-2] = path_split[-2]+'_upscaled'
+    new_path = '.'.join(path_split)
+    upscaled_image.save(new_path)
+    return new_path
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
