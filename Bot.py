@@ -3,7 +3,7 @@ from aiogram.utils import executor
 from aiogram.types import ContentTypes, InputMediaPhoto
 # from aiogram_media_group import media_group_handler
 # from aiogram_media_group.filters import MediaGroupFilter
-from typing import List
+# from typing import List
 
 from dotenv import load_dotenv
 
@@ -11,17 +11,16 @@ import tempfile
 import os
 
 from PIL import Image
-from diffusers import LDMSuperResolutionPipeline
+from diffusers.pipelines.latent_diffusion.pipeline_latent_diffusion_superresolution import LDMSuperResolutionPipeline
 import torch
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f'device: {device}')
 model_id = "CompVis/ldm-super-resolution-4x-openimages"
 
 # load model and scheduler
 pipeline = LDMSuperResolutionPipeline.from_pretrained(model_id)
 pipeline = pipeline.to(device)
-
-from PIL import Image
 
 
 def resize_image(image, max_size):
@@ -33,25 +32,20 @@ def resize_image(image, max_size):
         else:
             new_height = max_size
             new_width = int(width * (max_size / height))
-        image = image.resize((new_width, new_height), Image.ANTIALIAS)
+        image = image.resize((new_width, new_height), Image.LANCZOS)
     return image
 
-
 def load_and_resize_image(file_path):
-    # Загрузка изображения
     image = Image.open(file_path).convert("RGB")
 
-    # Проверка и изменение размера, если необходимо
     max_size = 512
     image = resize_image(image, max_size)
 
-    # Сохранение измененного изображения (если требуется)
     # image.save(new_file_path)
 
     return image
 
-# Mock func
-def upscale_image(image_path, pipline = pipline):
+def upscale_image(image_path, pipeline=pipeline):
     low_res_img = load_and_resize_image(image_path)
     upscaled_image = pipeline(low_res_img, num_inference_steps=100, eta=1).images[0]
     path_split = image_path.split('.')
@@ -60,16 +54,17 @@ def upscale_image(image_path, pipline = pipline):
     upscaled_image.save(new_path)
     return new_path
 
+
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
+
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
     await message.reply("Привет! Отправь мне изображение, и я его обработаю.")
-
 
 
 # # Обработчик альбомов
