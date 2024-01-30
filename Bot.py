@@ -11,15 +11,18 @@ import tempfile
 import os
 
 from PIL import Image
+# from diffusers import StableDiffusionUpscalePipeline
 from diffusers.pipelines.latent_diffusion.pipeline_latent_diffusion_superresolution import LDMSuperResolutionPipeline
 import torch
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'device: {device}')
 model_id = "CompVis/ldm-super-resolution-4x-openimages"
+# model_id = "stabilityai/stable-diffusion-x4-upscaler"
 
 # load model and scheduler
 pipeline = LDMSuperResolutionPipeline.from_pretrained(model_id)
+# pipeline = StableDiffusionUpscalePipeline.from_pretrained(model_id, torch_dtype=torch.float16)
 pipeline = pipeline.to(device)
 
 
@@ -39,7 +42,7 @@ def load_and_resize_image(file_path):
     image = Image.open(file_path).convert("RGB")
 
     max_size = 512
-    image = resize_image(image, max_size)
+    # image = resize_image(image, max_size)
 
     # image.save(new_file_path)
 
@@ -47,7 +50,10 @@ def load_and_resize_image(file_path):
 
 def upscale_image(image_path, pipeline=pipeline):
     low_res_img = load_and_resize_image(image_path)
-    upscaled_image = pipeline(low_res_img, num_inference_steps=100, eta=1).images[0]
+    upscaled_image = pipeline(low_res_img, num_inference_steps=50, eta=1).images[0]
+    # prompt = "a photo of a lecture board with white text"
+    # upscaled_image = pipeline(prompt=prompt, image=low_res_img, num_inference_steps=1).images[0]
+    
     path_split = image_path.split('.')
     path_split[-2] = path_split[-2]+'_upscaled'
     new_path = '.'.join(path_split)
@@ -97,7 +103,7 @@ async def handle_docs_photo(message: types.Message):
         processed_image_path = upscale_image(file_path)
 
         with open(processed_image_path, 'rb') as photo:
-            await message.reply_photo(photo, caption="Вот обработанное изображение:")
+            await message.reply_document(photo, caption="Вот обработанное изображение:")
 
 
 if __name__ == '__main__':
