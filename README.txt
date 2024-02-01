@@ -1,1 +1,0 @@
-﻿Tg bot for upscaling images.

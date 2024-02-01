@@ -15,6 +15,7 @@ from PIL import Image
 from diffusers.pipelines.latent_diffusion.pipeline_latent_diffusion_superresolution import LDMSuperResolutionPipeline
 import torch
 
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'device: {device}')
 model_id = "CompVis/ldm-super-resolution-4x-openimages"
@@ -26,27 +27,42 @@ pipeline = LDMSuperResolutionPipeline.from_pretrained(model_id)
 pipeline = pipeline.to(device)
 
 
+
 def resize_image(image, max_size):
-    width, height = image.size
-    if width > max_size or height > max_size:
-        if width > height:
+    # Получаем текущие размеры изображения
+    original_width, original_height = image.size
+
+    # Вычисляем соотношение сторон изображения
+    aspect_ratio = original_width / original_height
+
+    # Проверяем, превышает ли какая-либо из сторон максимальный размер
+    if original_width > max_size or original_height > max_size:
+        if aspect_ratio > 1:
+            # Ширина больше высоты, уменьшаем по ширине
             new_width = max_size
-            new_height = int(height * (max_size / width))
+            new_height = int(max_size / aspect_ratio)
         else:
+            # Высота больше ширины, уменьшаем по высоте
+            new_width = int(max_size * aspect_ratio)
             new_height = max_size
-            new_width = int(width * (max_size / height))
+        
+        # Изменяем размер изображения
         image = image.resize((new_width, new_height), Image.LANCZOS)
+    
     return image
 
 def load_and_resize_image(file_path):
+    # Загружаем изображение и преобразуем его в RGB
     image = Image.open(file_path).convert("RGB")
 
-    max_size = 512
-    # image = resize_image(image, max_size)
+    # Максимальный размер для одной из сторон изображения
+    max_size = 256
 
-    # image.save(new_file_path)
+    # Вызываем функцию изменения размера
+    image = resize_image(image, max_size)
 
     return image
+
 
 def upscale_image(image_path, pipeline=pipeline):
     low_res_img = load_and_resize_image(image_path)
@@ -92,6 +108,9 @@ async def send_welcome(message: types.Message):
 # Обработчик отдельных фотографий
 @dp.message_handler(content_types=ContentTypes.PHOTO)
 async def handle_docs_photo(message: types.Message):
+
+    await message.reply("Произвожу апскейл, подождите 1-2 минуты :)")
+
     highest_quality_photo = message.photo[-1]
 
     with tempfile.TemporaryDirectory() as temp_dir:
